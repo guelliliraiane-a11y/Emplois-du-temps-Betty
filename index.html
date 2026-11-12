@@ -1,0 +1,475 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emploi du temps Betty</title>
+<style>
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --text: #20242b;
+  --muted: #777f8c;
+  --accent: #315ee8;
+  --border: #e8eaf0;
+  --green: #16845b;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.container {
+  max-width: 680px;
+  margin: auto;
+  padding: 24px 16px 40px;
+}
+header { margin-bottom: 22px; }
+h1 {
+  font-size: 25px;
+  margin: 0 0 6px;
+  letter-spacing: -0.6px;
+}
+.subtitle { color: var(--muted); font-size: 14px; }
+.clock-card, .card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  padding: 19px;
+  margin-bottom: 14px;
+}
+.clock {
+  font-size: 39px;
+  font-weight: 750;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+}
+.date { color: var(--muted); margin-top: 3px; font-size: 14px; }
+.section-label {
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+.current {
+  font-size: 23px;
+  font-weight: 750;
+  margin-bottom: 6px;
+}
+.time-range { color: var(--muted); font-size: 14px; }
+.next {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 17px;
+  padding-top: 15px;
+}
+.next-name { font-weight: 700; margin-top: 4px; }
+.countdown {
+  color: var(--accent);
+  font-weight: 750;
+  font-size: 17px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.days {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 2px 0 13px;
+  scrollbar-width: none;
+}
+.days button {
+  flex: 1;
+  min-width: 58px;
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 11px;
+  padding: 11px 7px;
+  color: var(--text);
+  font-weight: 650;
+  cursor: pointer;
+}
+.days button.active {
+  color: white;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.timeline-item {
+  display: grid;
+  grid-template-columns: 94px 1fr;
+  gap: 12px;
+  padding: 13px 10px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 9px;
+}
+.timeline-item:last-child { border-bottom: 0; }
+.timeline-item.active {
+  background: #edf2ff;
+  border-bottom-color: transparent;
+}
+.timeline-time {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 650;
+  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.timeline-name { font-weight: 700; font-size: 15px; }
+.timeline-item.active .timeline-name { color: var(--accent); }
+.status {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 750;
+  color: var(--green);
+  margin-top: 5px;
+}
+.notice {
+  text-align: center;
+  padding: 28px 16px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.notice strong { display: block; color: var(--text); font-size: 19px; margin-bottom: 8px; }
+.footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 22px;
+}
+@media(max-width:420px) {
+  .container { padding: 20px 12px 30px; }
+  .clock { font-size: 35px; }
+  .timeline-item { grid-template-columns: 84px 1fr; gap: 8px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Emploi du temps Betty</h1>
+    <div class="subtitle">Planning de la semaine · Année scolaire 2026–2027</div>
+  </header>
+
+  <section class="clock-card">
+    <div class="section-label">Heure actuelle</div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="date" id="date"></div>
+  </section>
+
+  <section class="card" id="currentCard">
+    <div class="section-label">Poste actuel</div>
+    <div class="current" id="currentName">Chargement...</div>
+    <div class="time-range" id="currentTime"></div>
+    <div class="next">
+      <div>
+        <div class="section-label">Prochain poste</div>
+        <div class="next-name" id="nextName">—</div>
+        <div class="time-range" id="nextTime"></div>
+      </div>
+      <div class="countdown" id="countdown"></div>
+    </div>
+  </section>
+
+  <div class="section-label">Choisir un jour</div>
+  <nav class="days" id="days"></nav>
+
+  <section class="card">
+    <div class="section-label" id="scheduleTitle">Planning du jour</div>
+    <div id="timeline"></div>
+  </section>
+
+  <div class="footer">Planning Betty · Mise à jour automatique</div>
+</div>
+
+<script>
+const planning = {
+  1: {
+    name: "Lundi",
+    shifts: [
+      ["07:40","11:00","Bureau"],
+      ["11:00","11:30","Pause 😴💤"],
+      ["11:30","12:05","Appel cantine ☎️"],
+      ["12:05","13:30","Cour ⚽"],
+      ["13:30","17:35","Bureau"],
+      ["17:35","17:40","Grille 🚧"]
+    ]
+  },
+  2: {
+    name: "Mardi",
+    shifts: [
+      ["07:40","08:00","Cour ⚽"],
+      ["08:00","08:55","Permanence 🏫👨‍🏫"],
+      ["08:55","09:00","Cour ⚽"],
+      ["09:00","09:50","Couloirs 🚶‍♂️🏢"],
+      ["09:50","10:10","Grille 🚧"],
+      ["10:10","11:00","Bureau 2 🖥️📋"],
+      ["11:00","11:30","Pause 😴💤"],
+      ["11:30","12:05","Cour ⚽"],
+      ["12:05","12:10","Grille 🚧"],
+      ["12:10","13:30","Cour ⚽"],
+      ["13:30","14:20","Permanence 🏫👨‍🏫"],
+      ["14:20","14:30","Cour ⚽"],
+      ["14:30","15:20","Suivi classe 💻"],
+      ["15:20","15:40","Cour ⚽"],
+      ["15:40","16:30","SI DF 605 / Projet 📖✍️"],
+      ["16:30","16:40","Grille 🚧"]
+    ]
+  },
+  3: {
+    name: "Mercredi",
+    shifts: [
+      ["07:40","08:00","Grille 🚧"],
+      ["08:00","08:55","Bureau 2 🖥️📋"],
+      ["08:55","09:00","Cour ⚽"],
+      ["09:00","09:55","Permanence 🏫👨‍🏫"],
+      ["09:55","10:10","Cour ⚽"],
+      ["10:10","11:05","Permanence 2 🏫👨‍🏫"],
+      ["11:05","11:10","Hall / couloirs 🚶‍♂️🏢"],
+      ["11:10","12:05","Couloirs 🚶‍♂️🏢"],
+      ["12:05","12:10","Grille 🚧"]
+    ]
+  },
+  4: {
+    name: "Jeudi",
+    shifts: [
+      ["07:40","08:00","Cour ⚽"],
+      ["08:00","08:55","Permanence 2 🏫👨‍🏫"],
+      ["08:55","09:00","Grille 🚧"],
+      ["09:00","09:50","Permanence 2 🏫👨‍🏫"],
+      ["09:50","10:10","Hall / couloirs 🚶‍♂️🏢"],
+      ["10:10","11:00","Suivi classe 💻"],
+      ["11:00","12:05","Cour ⚽"],
+      ["12:05","13:20","Self 🍽️"],
+      ["13:20","13:30","Cour ⚽"],
+      ["13:30","14:00","Pause 😴💤"],
+      ["14:00","14:30","Couloirs 🚶‍♂️🏢"],
+      ["14:30","15:20","Permanence 2 🏫👨‍🏫"],
+      ["15:20","15:40","Cour ⚽"],
+      ["15:40","16:30","Permanence 🏫👨‍🏫"],
+      ["16:30","16:40","Cour ⚽"],
+      ["16:40","17:35","Bureau 2 🖥️📋"],
+      ["17:35","17:40","Grille 🚧"]
+    ]
+  },
+  5: {
+    name: "Vendredi",
+    shifts: [
+      ["07:40","08:00","Cour ⚽"],
+      ["08:00","08:55","Couloirs 🚶‍♂️🏢"],
+      ["08:55","09:00","Grille 🚧"],
+      ["09:00","09:50","Permanence 🏫👨‍🏫"],
+      ["09:50","10:10","Cour ⚽"],
+      ["10:10","11:00","Permanence 2 🏫👨‍🏫"],
+      ["11:00","11:10","Grille 🚧"],
+      ["11:10","11:30","Cour ⚽"],
+      ["11:30","11:35","Grille 🚧"],
+      ["11:35","12:05","Cour ⚽"],
+      ["12:05","13:20","Self 🍽️"],
+      ["13:20","13:30","Pause 😴💤"],
+      ["13:30","14:10","Bureau 2 🖥️📋"]
+    ]
+  }
+};
+
+// Dates de vacances Zone C : fin exclue.
+const holidays = [
+  ["2026-10-17","2026-11-02","Vacances de la Toussaint"],
+  ["2026-12-19","2027-01-04","Vacances de Noël"],
+  ["2027-02-06","2027-02-22","Vacances d’hiver"],
+  ["2027-04-03","2027-04-19","Vacances de printemps"],
+  ["2027-07-03","2027-09-01","Vacances d’été"]
+];
+
+const noSchoolDays = ["2027-05-07"];
+let selectedDay = new Date().getDay();
+let selectedDate = new Date();
+
+function toMinutes(time) {
+  const [h,m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function dateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,"0");
+  const d = String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+
+function getHoliday(date) {
+  const key = dateKey(date);
+  return holidays.find(h => key >= h[0] && key < h[1]);
+}
+
+function formatDate(date) {
+  return date.toLocaleDateString("fr-FR", {
+    weekday:"long", day:"numeric", month:"long", year:"numeric"
+  });
+}
+
+function renderDays() {
+  const labels = ["Dim.","Lun.","Mar.","Mer.","Jeu.","Ven.","Sam."];
+  const nav = document.getElementById("days");
+  nav.innerHTML = "";
+
+  [1,2,3,4,5].forEach(day => {
+    const btn = document.createElement("button");
+    btn.textContent = labels[day];
+    btn.className = selectedDay === day ? "active" : "";
+    btn.onclick = () => {
+      selectedDay = day;
+      const today = new Date();
+      const diff = day - today.getDay();
+      selectedDate = new Date(today);
+      selectedDate.setDate(today.getDate() + diff);
+      renderDays();
+      renderSchedule();
+    };
+    nav.appendChild(btn);
+  });
+}
+
+function renderSchedule() {
+  const timeline = document.getElementById("timeline");
+  const title = document.getElementById("scheduleTitle");
+  const holiday = getHoliday(selectedDate);
+  const key = dateKey(selectedDate);
+
+  title.textContent = `Planning du ${planning[selectedDay].name}`;
+
+  if (holiday || noSchoolDays.includes(key)) {
+    timeline.innerHTML = `<div class="notice">
+      <strong>Pas de travail 🏖️</strong>
+      ${holiday ? holiday[2] : "Jour sans école"}
+    </div>`;
+    return;
+  }
+
+  const shifts = planning[selectedDay].shifts;
+  timeline.innerHTML = shifts.map((shift, index) => `
+    <div class="timeline-item" id="shift-${index}">
+      <div class="timeline-time">${shift[0]} – ${shift[1]}</div>
+      <div>
+        <div class="timeline-name">${shift[2]}</div>
+      </div>
+    </div>
+  `).join("");
+
+  updateCurrent();
+}
+
+function updateCurrent() {
+  const now = new Date();
+  const today = now.getDay();
+  const minutes = now.getHours()*60 + now.getMinutes();
+  const seconds = now.getSeconds();
+
+  document.getElementById("clock").textContent =
+    now.toLocaleTimeString("fr-FR");
+
+  document.getElementById("date").textContent = formatDate(now);
+
+  // Le suivi en direct concerne uniquement la date actuelle.
+  if (selectedDay !== today || dateKey(selectedDate) !== dateKey(now)) {
+    return;
+  }
+
+  const holiday = getHoliday(now);
+  if (holiday || noSchoolDays.includes(dateKey(now))) {
+    document.getElementById("currentName").textContent = "Pas de travail 🏖️";
+    document.getElementById("currentTime").textContent =
+      holiday ? holiday[2] : "Jour sans école";
+    document.getElementById("nextName").textContent = "—";
+    document.getElementById("nextTime").textContent = "";
+    document.getElementById("countdown").textContent = "";
+    return;
+  }
+
+  const day = planning[today];
+  if (!day) {
+    document.getElementById("currentName").textContent = "Aucun poste aujourd'hui";
+    document.getElementById("currentTime").textContent = "Profite de ta journée !";
+    document.getElementById("nextName").textContent = "—";
+    document.getElementById("nextTime").textContent = "";
+    document.getElementById("countdown").textContent = "";
+    return;
+  }
+
+  const shifts = day.shifts;
+  const currentIndex = shifts.findIndex(s =>
+    minutes >= toMinutes(s[0]) && minutes < toMinutes(s[1])
+  );
+
+  const currentName = document.getElementById("currentName");
+  const currentTime = document.getElementById("currentTime");
+  const nextName = document.getElementById("nextName");
+  const nextTime = document.getElementById("nextTime");
+  const countdown = document.getElementById("countdown");
+
+  document.querySelectorAll(".timeline-item").forEach(el =>
+    el.classList.remove("active")
+  );
+
+  if (currentIndex !== -1) {
+    const current = shifts[currentIndex];
+    currentName.textContent = current[2];
+    currentTime.textContent = `${current[0]} – ${current[1]}`;
+    document.getElementById(`shift-${currentIndex}`)?.classList.add("active");
+
+    const next = shifts[currentIndex+1];
+    if (next) {
+      nextName.textContent = next[2];
+      nextTime.textContent = `${next[0]} – ${next[1]}`;
+      const remaining = toMinutes(current[1]) - minutes;
+      countdown.textContent = `${remaining} min`;
+    } else {
+      nextName.textContent = "Fin de journée";
+      nextTime.textContent = "";
+      countdown.textContent = "Terminé bientôt";
+    }
+  } else {
+    const first = shifts[0];
+    const last = shifts[shifts.length-1];
+
+    if (minutes < toMinutes(first[0])) {
+      currentName.textContent = "Pas encore en poste";
+      currentTime.textContent = `Début à ${first[0]}`;
+      nextName.textContent = first[2];
+      nextTime.textContent = `${first[0]} – ${first[1]}`;
+      const remaining = toMinutes(first[0]) - minutes;
+      countdown.textContent = `Dans ${remaining} min`;
+    } else if (minutes >= toMinutes(last[1])) {
+      currentName.textContent = "Journée terminée ✅";
+      currentTime.textContent = `Fin à ${last[1]}`;
+      nextName.textContent = "—";
+      nextTime.textContent = "";
+      countdown.textContent = "";
+    } else {
+      currentName.textContent = "Pause entre deux postes";
+      currentTime.textContent = "";
+      nextName.textContent = "Prochain poste";
+      nextTime.textContent = "";
+      countdown.textContent = "";
+    }
+  }
+}
+
+function tick() {
+  updateCurrent();
+}
+
+renderDays();
+renderSchedule();
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
